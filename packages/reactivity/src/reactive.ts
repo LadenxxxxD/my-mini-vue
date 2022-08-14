@@ -1,9 +1,18 @@
 import { isObject } from "../../shared/src";
+import { mutableHandler } from './baseHandlers'
+
+export const enum ReactiveFlags {
+  IS_REACTIVE = '__v_isReactive'
+}
 
 const reactiveMap = new WeakMap();
 
-const enum ReactiveFlags {
-  IS_REACTIVE = '__v_isReactive'
+export interface Target {
+  // [ReactiveFlags.SKIP]?: boolean
+  [ReactiveFlags.IS_REACTIVE]?: boolean
+  // [ReactiveFlags.IS_READONLY]?: boolean
+  // [ReactiveFlags.IS_SHALLOW]?: boolean
+  // [ReactiveFlags.RAW]?: any
 }
 
 /**
@@ -14,7 +23,10 @@ const enum ReactiveFlags {
  */
 export function reactive<T extends object>(target: T) {
   if (!isObject(target)) return;
+  return createReactiveObject(target);
+}
 
+function createReactiveObject(target: Target) {
   if (target[ReactiveFlags.IS_REACTIVE]) {
     return target;
   }
@@ -23,19 +35,9 @@ export function reactive<T extends object>(target: T) {
   const exisitingProxy = reactiveMap.get(target);
   if (exisitingProxy) return exisitingProxy;
 
-  const proxy =  new Proxy(target, {
-    // 取值时会调用get
-    get(target, key, receiver) {
-      if (key === ReactiveFlags.IS_REACTIVE) return true;
+  const proxy =  new Proxy(target, mutableHandler)
 
-      return Reflect.get(target, key, receiver)
-    },
-    // 赋值时会调用set
-    set(target, key, value, receiver) {
-      return Reflect.set(target, key, value, receiver)
-    }
-  })
-
+  // 添加进缓存
   reactiveMap.set(target, proxy)
 
   return proxy
